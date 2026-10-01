@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+config/app.local.php
+vendor/
+node_modules/
+.vscode/
+Thumbs.db
