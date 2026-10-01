@@ -23,6 +23,16 @@ O Nexis usa o endpoint compatível com OpenAI `https://api.groq.com/openai/v1/ch
 
 As sugestões de prompt seguem cinco elementos: persona, ação, resultado, tom e suporte/contexto.
 
+## Sincronização com o GitHub
+
+O projeto está no repositório privado [Joaogmaia02/Nexis](https://github.com/Joaogmaia02/Nexis). Depois de alterar os arquivos localmente, execute no PowerShell:
+
+```powershell
+.\sincronizar.ps1 -Mensagem "Descreve a alteração"
+```
+
+O script cria o commit e envia a branch `main` para o GitHub. A chave `GROQ_API_KEY` deve permanecer configurada apenas no ambiente local ou no servidor, nunca no repositório.
+
 ## Planejamento de horas
 
 A tabela de sistemas, atividades de desenvolvimento/correção, prioridades e horas estimadas está em [PLANO_HORAS_NEXIS.md](PLANO_HORAS_NEXIS.md). O documento estima 156 horas para concluir o escopo descrito e inclui critérios para registrar evidências das horas de extensão.
