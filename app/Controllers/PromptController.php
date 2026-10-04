@@ -15,6 +15,8 @@ class PromptController extends Controller
         $payload = $this->readRequestPayload();
         $rawInput = $this->readPromptInput($payload);
         $previousSuggestions = $this->readPreviousSuggestions($payload);
+        $history = $this->readConversationHistory($payload);
+        $continuation = (bool) ($payload['continuation'] ?? false);
 
         if ($rawInput === '') {
             $this->json([
@@ -27,7 +29,7 @@ class PromptController extends Controller
 
         try {
             $model = new PromptModel();
-            $suggestions = $model->generateSuggestions($rawInput, $previousSuggestions);
+            $suggestions = $model->generateSuggestions($rawInput, $previousSuggestions, $history, $continuation);
         } catch (DomainException $exception) {
             $this->json([
                 'success' => false,

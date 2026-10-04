@@ -8,9 +8,9 @@ use RuntimeException;
 
 class PromptModel
 {
-    public function generateSuggestions(string $rawPrompt, array $previousSuggestions = []): array
+    public function generateSuggestions(string $rawPrompt, array $previousSuggestions = [], array $history = [], bool $continuation = false): array
     {
-        $apiSuggestions = $this->requestSuggestionsFromApi($rawPrompt, $previousSuggestions);
+        $apiSuggestions = $this->requestSuggestionsFromApi($rawPrompt, $previousSuggestions, $history, $continuation);
 
         if ($apiSuggestions !== []) {
             return array_slice($apiSuggestions, 0, 3);
@@ -60,20 +60,28 @@ class PromptModel
         return $content;
     }
 
-    private function requestSuggestionsFromApi(string $rawPrompt, array $previousSuggestions = []): array
+    private function requestSuggestionsFromApi(string $rawPrompt, array $previousSuggestions = [], array $history = [], bool $continuation = false): array
     {
         $avoidList = $this->buildAvoidList($previousSuggestions);
+        $systemPrompt = $continuation
+            ? 'Você é o Nexis, um especialista em continuidade de suporte técnico. Analise o histórico da conversa e a nova mensagem do usuário. Gere exatamente 3 opções de prompts para continuar o atendimento, sem responder diretamente ainda. Cada descrição deve seguir exatamente esta estrutura com rótulos entre colchetes: [AVALIAÇÃO] O que funcionou, o que falhou ou o que precisa ser corrigido na resposta anterior. [AJUSTE / NOVA AÇÃO] A modificação, aprofundamento ou próximo passo solicitado. [FORMATO / RESTRIÇÃO] Formato, limite ou regra para manter a próxima resposta clara. [NOVO SUPORTE] Novas informações, variáveis ou regras relevantes, quando existirem. As opções devem considerar o histórico, ser específicas e diferentes entre si. Responda apenas com JSON válido no formato {"suggestions":[{"title":"...","description":"..."}]}. Não inclua texto fora do JSON.'
+            : 'Você é o Nexis, um especialista em diagnóstico técnico e engenharia de prompts para pessoas com diferentes níveis de experiência, inclusive iniciantes e idosos. Considere técnico qualquer pedido de ajuda para usar, instalar, baixar, atualizar, configurar ou solucionar problemas em celulares, computadores, aplicativos, sites, contas digitais, sistemas operacionais, impressoras, redes, arquivos e serviços online. Também considere válidos algoritmos, matemática aplicada à computação, linguagens como C++, bibliotecas, hardware, bancos de dados, segurança e desenvolvimento. Exemplos técnicos: como baixar o Facebook, instalar um aplicativo, recuperar acesso, conectar o Wi-Fi ou ajustar o celular. Não dependa de uma lista fixa de palavras. Se não for técnico ou não tiver relação com tecnologia e suporte digital, responda apenas com JSON válido no formato {"suggestions":[]}. Se for técnico, gere exatamente 3 opções úteis, específicas e diferentes, em português do Brasil, com linguagem simples. Cada descrição deve ser um prompt pronto para copiar e deve conter, de forma explícita e adaptada ao caso, os cinco elementos: PERSONA, AÇÃO, RESULTADO, TOM e SUPORTE. Responda apenas com JSON válido no formato {"suggestions":[{"title":"...","description":"..."}]}. Não inclua texto fora do JSON.';
 
-        $response = $this->requestChatCompletion([
+        $messages = [
             [
                 'role' => 'system',
-                'content' => 'Você é o Nexis, um especialista em diagnóstico técnico e engenharia de prompts para pessoas com diferentes níveis de experiência, inclusive iniciantes e idosos. Considere técnico qualquer pedido de ajuda para usar, instalar, baixar, atualizar, configurar ou solucionar problemas em celulares, computadores, aplicativos, sites, contas digitais, sistemas operacionais, impressoras, redes, arquivos e serviços online. Também considere válidos algoritmos, matemática aplicada à computação, linguagens como C++, bibliotecas, hardware, bancos de dados, segurança e desenvolvimento. Exemplos técnicos: como baixar o Facebook, instalar um aplicativo, recuperar acesso, conectar o Wi-Fi ou ajustar o celular. Não dependa de uma lista fixa de palavras. Se não for técnico ou não tiver relação com tecnologia e suporte digital, responda apenas com JSON válido no formato {"suggestions":[]}. Se for técnico, gere exatamente 3 opções úteis, específicas e diferentes, em português do Brasil, com linguagem simples. Cada descrição deve ser um prompt pronto para copiar e deve conter, de forma explícita e adaptada ao caso, os cinco elementos: PERSONA (quem a IA deve ser e seu nível de especialização), AÇÃO (tarefa principal e verbo claro), RESULTADO (formato e critérios da resposta), TOM (estilo de comunicação) e SUPORTE (contexto, ambiente, restrições, exemplos ou dados que a IA deve considerar). Use rótulos curtos como "Persona:", "Ação:", "Resultado:", "Tom:" e "Suporte:" para deixar a estrutura visível. Não invente dados ausentes: transforme lacunas em perguntas ou suposições indicadas. Responda apenas com JSON válido no formato {"suggestions":[{"title":"...","description":"..."}]}. Não inclua texto fora do JSON. Evite sugestões genéricas e repetições.',
+                'content' => $systemPrompt,
             ],
-            [
-                'role' => 'user',
-                'content' => $rawPrompt . $avoidList,
-            ],
-        ]);
+        ];
+
+        foreach (array_slice($history, -12) as $message) {
+            if (is_array($message) && in_array($message['role'] ?? '', ['user', 'assistant'], true) && trim((string) ($message['content'] ?? '')) !== '') {
+                $messages[] = ['role' => $message['role'], 'content' => trim((string) $message['content'])];
+            }
+        }
+
+        $messages[] = ['role' => 'user', 'content' => $rawPrompt . $avoidList];
+        $response = $this->requestChatCompletion($messages);
 
         $content = (string) ($response['choices'][0]['message']['content'] ?? '');
         $decoded = json_decode($content, true);

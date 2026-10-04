@@ -364,6 +364,23 @@ body {
     border-bottom-right-radius: 0.25rem;
 }
 
+.message.user .structured-prompt {
+    text-align: left;
+    padding: 1rem 1.15rem;
+}
+
+.message.user .structured-prompt .prompt-structure {
+    gap: 0.65rem;
+}
+
+.message.user .structured-prompt .prompt-section-label {
+    color: #e6f8ff;
+}
+
+.message.user .structured-prompt .prompt-section-content {
+    color: #ffffff;
+}
+
 .message.bot .message-content {
     width: 100%;
     max-width: 72rem;
@@ -704,9 +721,9 @@ body.dark-theme .response-table td {
 }
 
 .prompt-text {
-    color: var(--text-secondary);
+    color: var(--text-primary);
     font-size: 0.8125rem;
-    line-height: 1.5;
+    line-height: 1.55;
     margin-bottom: 0.75rem;
     padding: 0.625rem;
     background: var(--input-bg);
@@ -715,6 +732,37 @@ body.dark-theme .response-table td {
     transition: all 0.3s ease;
     word-wrap: break-word;
     flex-grow: 1;
+}
+
+.prompt-structure {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.prompt-section {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.prompt-section-label {
+    color: #2485ad;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.prompt-section-content {
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+body.dark-theme .prompt-text {
+    background: #252e40;
+}
+
+body.dark-theme .prompt-section-label {
+    color: #78c9e7;
 }
 
 /* ============================================================================

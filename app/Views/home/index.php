@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Nexis', ENT_QUOTES, 'UTF-8') ?></title>
     <link rel="icon" type="image/x-icon" href="Imagens/ico.ico">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 </head>
@@ -69,6 +69,6 @@
         </svg>
     </button>
 
-    <script src="script.js?v=13"></script>
+    <script src="script.js?v=14"></script>
 </body>
 </html>

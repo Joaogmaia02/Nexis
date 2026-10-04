@@ -13,7 +13,7 @@ let currentPromptOffset = 0;
 let currentSuggestedPrompts = [];
 let conversationHistory = [];
 // Função para buscar prompts otimizados no back-end do Nexis
-async function fetchSuggestedPrompts(userMessage, previousSuggestions = []) {
+async function fetchSuggestedPrompts(userMessage, previousSuggestions = [], history = [], continuation = false) {
     const response = await fetch('api/prompts', {
         method: 'POST',
         headers: {
@@ -22,7 +22,9 @@ async function fetchSuggestedPrompts(userMessage, previousSuggestions = []) {
         },
         body: JSON.stringify({
             prompt: userMessage,
-            previous_suggestions: previousSuggestions
+            previous_suggestions: previousSuggestions,
+            history,
+            continuation
         })
     });
 
@@ -72,8 +74,7 @@ function displaySuggestedPrompts(userMessage, prompts) {
 
         const text = document.createElement('div');
         text.className = 'prompt-text';
-        text.textContent = prompt.description;
-        text.style.whiteSpace = 'pre-wrap';
+        text.appendChild(renderPromptStructure(prompt.description));
 
         const actions = document.createElement('div');
         actions.className = 'prompt-actions';
@@ -124,8 +125,48 @@ function displaySuggestedPrompts(userMessage, prompts) {
     promptsContainer.appendChild(promptsGridWrapper);
 }
 
+function renderPromptStructure(description) {
+    const structure = document.createElement('div');
+    structure.className = 'prompt-structure';
+    const sectionPattern = /^(?:\[(Persona|Ação|Resultado|Tom|Suporte|Avaliação|Ajuste \/ Nova Ação|Formato \/ Restrição|Novo Suporte)\]|(Persona|Ação|Resultado|Tom|Suporte):)\s*(.*)$/i;
+    let currentSection = null;
+    const normalizedDescription = description.split(/(?=\[(?:Persona|Ação|Resultado|Tom|Suporte|Avaliação|Ajuste \/ Nova Ação|Formato \/ Restrição|Novo Suporte)\]|(?:Persona|Ação|Resultado|Tom|Suporte):)/i).join('\n');
+
+    normalizedDescription.split(/\r?\n/).forEach(line => {
+        const match = line.match(sectionPattern);
+
+        if (match) {
+            currentSection = document.createElement('section');
+            currentSection.className = 'prompt-section';
+
+            const label = document.createElement('strong');
+            label.className = 'prompt-section-label';
+            label.textContent = match[1] || match[2];
+
+            const content = document.createElement('span');
+            content.className = 'prompt-section-content';
+            content.textContent = match[3];
+
+            currentSection.appendChild(label);
+            currentSection.appendChild(content);
+            structure.appendChild(currentSection);
+            return;
+        }
+
+        if (currentSection && line.trim() !== '') {
+            currentSection.querySelector('.prompt-section-content').textContent += ` ${line.trim()}`;
+        }
+    });
+
+    if (structure.children.length === 0) {
+        structure.textContent = description;
+    }
+
+    return structure;
+}
+
 // Função para carregar e exibir prompts do back-end
-async function loadSuggestedPrompts(userMessage, previousSuggestions = []) {
+async function loadSuggestedPrompts(userMessage, previousSuggestions = [], history = [], continuation = false) {
     const loadingMessage = document.createElement('div');
     loadingMessage.className = 'message bot is-loading';
     loadingMessage.innerHTML = '<div class="message-content"><div class="loading" aria-label="Carregando sugestões"><span></span><span></span><span></span></div></div>';
@@ -135,7 +176,7 @@ async function loadSuggestedPrompts(userMessage, previousSuggestions = []) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     try {
-        const prompts = await fetchSuggestedPrompts(userMessage, previousSuggestions);
+        const prompts = await fetchSuggestedPrompts(userMessage, previousSuggestions, history, continuation);
         loadingMessage.remove();
         displaySuggestedPrompts(userMessage, prompts);
         promptsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -280,7 +321,17 @@ function sendMessage() {
     // Adicionar mensagem do usuário
     const userMessageDiv = document.createElement('div');
     userMessageDiv.className = 'message user';
-    userMessageDiv.innerHTML = `<div class="message-content">${escapeHtml(message)}</div>`;
+    const userContent = document.createElement('div');
+    userContent.className = 'message-content';
+
+    if (/^\s*(?:\[(?:Persona|Ação|Resultado|Tom|Suporte|Avaliação|Ajuste \/ Nova Ação|Formato \/ Restrição|Novo Suporte)\]|(?:Persona|Ação|Resultado|Tom|Suporte):)/mi.test(message)) {
+        userContent.classList.add('structured-prompt');
+        userContent.appendChild(renderPromptStructure(message));
+    } else {
+        userContent.textContent = message;
+    }
+
+    userMessageDiv.appendChild(userContent);
     messagesContainer.appendChild(userMessageDiv);
     userMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -293,9 +344,11 @@ function sendMessage() {
     const hasAssistantResponse = conversationHistory.some(item => item.role === 'assistant');
 
     // Continuar a conversa depois que o Nexis já respondeu
-    if (isWaitingForPromptSelection || hasAssistantResponse) {
+    if (isWaitingForPromptSelection) {
         loadAssistantResponse(message, historyBeforeMessage);
         isWaitingForPromptSelection = false;
+    } else if (hasAssistantResponse) {
+        loadSuggestedPrompts(message, [], historyBeforeMessage, true);
     } else {
         // Carregar prompts otimizados diretamente do back-end
         loadSuggestedPrompts(message);
