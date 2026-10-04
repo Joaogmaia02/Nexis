@@ -11,6 +11,7 @@ let isWaitingForPromptSelection = false;
 let currentUserMessage = '';
 let currentPromptOffset = 0;
 let currentSuggestedPrompts = [];
+let conversationHistory = [];
 // Função para buscar prompts otimizados no back-end do Nexis
 async function fetchSuggestedPrompts(userMessage, previousSuggestions = []) {
     const response = await fetch('api/prompts', {
@@ -90,10 +91,9 @@ function displaySuggestedPrompts(userMessage, prompts) {
         useButton.addEventListener('click', () => {
             userInput.value = prompt.description;
             isWaitingForPromptSelection = true;
-            // Limpar prompts quando usuário seleciona um
             promptsContainer.classList.remove('active');
             promptsContainer.innerHTML = '';
-            userInput.focus();
+            sendMessage();
         });
 
         actions.appendChild(copyButton);
@@ -127,7 +127,7 @@ function displaySuggestedPrompts(userMessage, prompts) {
 // Função para carregar e exibir prompts do back-end
 async function loadSuggestedPrompts(userMessage, previousSuggestions = []) {
     const loadingMessage = document.createElement('div');
-    loadingMessage.className = 'message bot';
+    loadingMessage.className = 'message bot is-loading';
     loadingMessage.innerHTML = '<div class="message-content"><div class="loading" aria-label="Carregando sugestões"><span></span><span></span><span></span></div></div>';
 
     messagesContainer.appendChild(loadingMessage);
@@ -138,6 +138,7 @@ async function loadSuggestedPrompts(userMessage, previousSuggestions = []) {
         const prompts = await fetchSuggestedPrompts(userMessage, previousSuggestions);
         loadingMessage.remove();
         displaySuggestedPrompts(userMessage, prompts);
+        promptsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
         loadingMessage.remove();
 
@@ -188,12 +189,12 @@ function showCopyFeedback() {
     }, 3000);
 }
 
-async function loadAssistantResponse(prompt) {
+async function loadAssistantResponse(prompt, history = []) {
     const loadingMessage = document.createElement('div');
-    loadingMessage.className = 'message bot';
+    loadingMessage.className = 'message bot is-loading';
     loadingMessage.innerHTML = '<div class="message-content"><div class="loading" aria-label="Processando resposta"><span></span><span></span><span></span></div></div>';
     messagesContainer.appendChild(loadingMessage);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        loadingMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     try {
         const response = await fetch('api/respond', {
@@ -202,7 +203,7 @@ async function loadAssistantResponse(prompt) {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ prompt })
+            body: JSON.stringify({ prompt, history })
         });
         const data = await response.json().catch(() => null);
 
@@ -221,6 +222,8 @@ async function loadAssistantResponse(prompt) {
         content.innerHTML = renderMarkdown(data.response);
         botMessageDiv.appendChild(content);
         messagesContainer.appendChild(botMessageDiv);
+            botMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        conversationHistory.push({ role: 'assistant', content: data.response });
     } catch (error) {
         loadingMessage.remove();
         const errorMessage = document.createElement('div');
@@ -268,6 +271,9 @@ function sendMessage() {
 
     if (message === '') return;
 
+    const historyBeforeMessage = conversationHistory.slice();
+    conversationHistory.push({ role: 'user', content: message });
+
     // Mostrar container de mensagens
     messagesContainer.classList.add('active');
 
@@ -276,6 +282,7 @@ function sendMessage() {
     userMessageDiv.className = 'message user';
     userMessageDiv.innerHTML = `<div class="message-content">${escapeHtml(message)}</div>`;
     messagesContainer.appendChild(userMessageDiv);
+    userMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     // Limpar input
     userInput.value = '';
@@ -283,9 +290,11 @@ function sendMessage() {
     // Scroll para a última mensagem
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    // Verificar se estamos aguardando seleção de prompts
-    if (isWaitingForPromptSelection) {
-        loadAssistantResponse(message);
+    const hasAssistantResponse = conversationHistory.some(item => item.role === 'assistant');
+
+    // Continuar a conversa depois que o Nexis já respondeu
+    if (isWaitingForPromptSelection || hasAssistantResponse) {
+        loadAssistantResponse(message, historyBeforeMessage);
         isWaitingForPromptSelection = false;
     } else {
         // Carregar prompts otimizados diretamente do back-end

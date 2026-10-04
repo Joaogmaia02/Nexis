@@ -377,6 +377,16 @@ body {
     border-bottom-left-radius: 0.25rem;
     transition: background 0.3s ease, color 0.3s ease;
 }
+.message.bot.is-loading {
+    width: fit-content;
+    max-width: 100%;
+    align-self: flex-start;
+    margin-bottom: 2.5rem;
+}
+.message.bot.is-loading .message-content {
+    width: fit-content;
+    padding: 0.9rem 1.1rem;
+}
 
 .message.bot .message-content p {
     margin: 0 0 0.75rem;
@@ -500,6 +510,19 @@ body {
 
 .response-table td {
     background: #ffffff;
+}
+
+body.dark-theme .response-table table {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+body.dark-theme .response-table th {
+    background: #3a465d;
+}
+
+body.dark-theme .response-table td {
+    background: var(--bg-secondary);
 }
 
 

@@ -55,6 +55,7 @@ class PromptController extends Controller
     {
         $payload = $this->readRequestPayload();
         $prompt = $this->readPromptInput($payload);
+        $history = $this->readConversationHistory($payload);
 
         if ($prompt === '') {
             $this->json([
@@ -67,7 +68,7 @@ class PromptController extends Controller
 
         try {
             $model = new PromptModel();
-            $response = $model->generateResponse($prompt);
+            $response = $model->generateResponse($prompt, $history);
         } catch (DomainException $exception) {
             $this->json([
                 'success' => false,
@@ -106,6 +107,15 @@ class PromptController extends Controller
         }
 
         return $payload['previous_suggestions'];
+    }
+
+    private function readConversationHistory(array $payload = []): array
+    {
+        if ($payload === [] || !isset($payload['history']) || !is_array($payload['history'])) {
+            return [];
+        }
+
+        return array_slice($payload['history'], -12);
     }
 
     private function readRequestPayload(): array

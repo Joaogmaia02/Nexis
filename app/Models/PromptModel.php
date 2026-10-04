@@ -19,18 +19,37 @@ class PromptModel
         throw new DomainException('O Nexis aceita apenas prompts relacionados a problemas técnicos.');
     }
 
-    public function generateResponse(string $prompt): string
+    public function generateResponse(string $prompt, array $history = []): string
     {
-        $response = $this->requestChatCompletion([
+        $messages = [
             [
                 'role' => 'system',
                 'content' => 'Você é o Nexis, um especialista sênior em suporte técnico para pessoas com diferentes níveis de experiência, inclusive iniciantes e idosos. Considere técnico qualquer pedido de ajuda para usar, instalar, baixar, atualizar, configurar ou solucionar problemas em celulares, computadores, aplicativos, sites, contas digitais, sistemas operacionais, impressoras, redes, arquivos e serviços online. Também considere válidos algoritmos, matemática aplicada à computação, linguagens como C++, bibliotecas, hardware, bancos de dados, segurança e desenvolvimento. Exemplos técnicos: como baixar o Facebook, instalar um aplicativo, recuperar acesso, conectar o Wi-Fi ou ajustar o celular. Não dependa de uma lista fixa de palavras. Se o assunto não tiver relação com tecnologia ou suporte digital, explique educadamente que o Nexis atende apenas problemas técnicos. Para pedidos técnicos, produza uma solução confiável, específica e completa em português do Brasil, com linguagem simples e passos numerados. Adapte os passos ao dispositivo e sistema mencionados; se faltarem dados, declare a suposição e apresente alternativas. Não invente comandos, versões, links ou resultados. Inclua avisos de segurança contra golpes, downloads falsos e compartilhamento de senhas quando forem pertinentes. Use Markdown simples com títulos, listas, negrito e blocos de código; não use tabelas, HTML ou mostre raciocínio interno.',
             ],
-            [
-                'role' => 'user',
-                'content' => $prompt,
-            ],
-        ]);
+        ];
+
+        foreach (array_slice($history, -12) as $message) {
+            if (!is_array($message)) {
+                continue;
+            }
+
+            $role = (string) ($message['role'] ?? '');
+            $content = trim((string) ($message['content'] ?? ''));
+
+            if (in_array($role, ['user', 'assistant'], true) && $content !== '') {
+                $messages[] = [
+                    'role' => $role,
+                    'content' => $content,
+                ];
+            }
+        }
+
+        $messages[] = [
+            'role' => 'user',
+            'content' => $prompt,
+        ];
+
+        $response = $this->requestChatCompletion($messages);
 
         $content = trim((string) ($response['choices'][0]['message']['content'] ?? ''));
 
